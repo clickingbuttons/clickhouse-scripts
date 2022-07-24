@@ -3,28 +3,26 @@ set -eou pipefail
 
 table="us_equities.tickers"
 clickhouse-client --query="drop table if exists $table"
-clickhouse-client --query="create table if not exists $table (
-	symbol						LowCardinality(String),
-	last_updated_utc	Date,
-	name							LowCardinality(String),
-	primary_exchange	LowCardinality(String),
-	type							LowCardinality(String),
-	cik								LowCardinality(String),
-	composite_figi		LowCardinality(String),
-	share_class_figi	LowCardinality(String)
+clickhouse-client --query="CREATE TABLE IF NOT EXISTS $table (
+	ticker													LowCardinality(String),
+	time														Date,
+	name														LowCardinality(String),
+	primary_exchange								LowCardinality(String),
+	type														LowCardinality(String),
+	cik															LowCardinality(String),
+	composite_figi									LowCardinality(String),
+	share_class_figi								LowCardinality(String),
+	phone_number										LowCardinality(String),
+	description											LowCardinality(String),
+	sic_code												Nullable(UInt16),
+	ticker_root											LowCardinality(String),
+	homepage_url										LowCardinality(String),
+	total_employees									Nullable(UInt32),
+	list_date												Nullable(Date),
+	share_class_shares_outstanding	Nullable(Float64),
+	weighted_shares_outstanding			Nullable(Float64)
 )
 Engine = MergeTree
-partition by toYear(last_updated_utc)
-order by (last_updated_utc);"
+PARTITION BY toYear(time)
+ORDER BY (ticker, time);"
 
-data_dir="/mnt/raid0/csv/data/tickers"
-for f in $data_dir/*; do
-	echo $f
-	sed 's/T00:00:00+00:00//g' $f | \
-		sed 's/,null$/,/g' | \
-		clickhouse-client \
-		--input_format_skip_unknown_fields=true \
-		--format_csv_allow_single_quotes=0 \
-		--date_time_input_format='best_effort' \
-		--query="INSERT INTO $table FORMAT CSVWithNames"
-done
